@@ -1,0 +1,217 @@
+---
+title: "Survival Analyses"
+output: github_document
+always_allow_html: true
+---
+
+Markdown code for the survival analyses of the Port of Miami data examining the main effects of channel (i.e. dredging impact), reef habitat, and direction. Survival analyses used to tease apart species specific differences as well as the impact of state (or condition) specifically whether the corals were observed to be buried, bleached or diseased. Each variable is coded as 0 (absence) or 1 (presence) as well as in combination in the states column.
+
+```{r setup}
+rm(list = ls())
+knitr::opts_chunk$set(echo = TRUE, error = FALSE, fig.path='Figures/', dev=c('png', 'pdf'))
+```
+
+All figures exported to Figures/folder as png and pdf
+
+```{r libraries}
+library(knitr)
+library(survival)
+library(coda)
+library(survminer)
+library(dplyr)
+library(ggplot2)
+library(car)
+library(tidyverse)
+library(kableExtra)
+#library(gtsummary) #not loading properly
+```
+
+```{r import data}
+df_surv=read.csv("fl_surv_minusMIS.csv") #time by months; excludes missing corals
+df_status=read.csv("state_data.csv") #pulls in state data
+df <- merge(df_surv, df_status, by.x = "ID", by.y = "Coral") #merge dataframes
+#glimpse(df)
+```
+
+```{r Corellation Matrix}
+#Select 
+df_corr <- df %>% select(Mortality, Buried, Disease, Bleaching)
+head(df_corr)
+res <- cor(df_corr)
+round(res,2)
+```
+
+```{r}
+library(Hmisc)
+res2 <-rcorr(as.matrix(df_corr))
+res2
+```
+```{r correlation plot}
+library(corrplot)
+corrplot(res, type = "upper", order = "hclust",
+         tl.col = "black", tl.srt = 45)
+```
+```{r}
+# Insignificant correlation are crossed
+corrplot(res2$r, type="upper", order="hclust", 
+         p.mat = res2$P, sig.level = 0.01, insig = "blank")
+# Insignificant correlations are leaved blank
+corrplot(res2$r, type="upper", order="hclust", 
+         p.mat = res2$P, sig.level = 0.01, insig = "blank")
+```
+
+```{r mortality by state}
+#states column codes 
+#Disease = 1
+#Bleaching = 3
+#Buried = 5
+#Additive combos
+#xtabs(~States+Mortality, data = df)
+```
+0 = no observed condition; 1 = diseased; 3 = bleaching; 5 = buried; and then additive combos to produce unique numbers. Condider recoding numbers to unique states.
+
+```{r state by species}
+xtabs(~Species+States, data = df)
+```
+Table shows the conditions by species where disease is a focus of this analysis including species specific patterns of disease susceptibility to SCTLD in particular.
+
+```{r df long}
+#Makes data.frame into long format for survival analyses
+df_long <- gather(df,
+                   key = "months",
+                   value = "census",
+                   X0:X21)
+df1 <- df_long %>% mutate(months = as.numeric(gsub("X", "", months)))
+```
+
+
+```{r Cox Main Effects}
+# Fit Cox Model
+cox_fit<- coxph(Surv(months, census)~ Channel + Habitat + Dir, data=df1)
+cox_fit
+```
+
+Double check, but exp(coef) is the relative hazards ratio and its se. Not sure what the HR is for habitat which should have 3 states?
+
+```{r ANOVA Cox Main Effects}
+Anova(cox_fit)
+```
+NS channel effect on mortality, but Habitat and Direction both significant.
+
+```{r Habitat_survplot}
+ggsurvplot(
+  survfit(Surv(months, census)~ Habitat, data=df1),  # survfit object with calculated statistics
+  pval = TRUE, pval.size = 4, # show p-value of log-rank test.
+  #conf.int = TRUE, conf.int.style = "step", # customize style of confidence intervals
+  xlab = "Time in Months",  # customize X axis label.
+  break.time.by = 1,    # break X axis in time intervals by 200.
+  ggtheme = theme_bw(), 
+  xlim= c(12, 21),# customize plot and risk table with a theme.
+  pval.coord = c(12,0.25),
+  #surv.median.line = "hv",  # add the median survival pointer.
+  legend = c("right"),
+  legend.title = "Habitat",
+  legend.labs = c("1", "2", "3"),    # change legend labels.
+  #palette = c("#E7B800", "#2E9FDF"), # custom color palettes
+  
+  #risk.table = "percentage",  # absolute number and percentage at risk.
+  #risk.table.fontsize = 3,# colour risk table text annotations.
+  #risk.table.y.text = FALSE,# show bars instead of names in text annotations
+  #ncensor.plot = TRUE      # plot the number of censored subjects at time t
+)
+```
+```{r Dir_survplot}
+ggsurvplot(
+  survfit(Surv(months, census)~ Dir, data=df1),  # survfit object with calculated statistics
+  pval = TRUE, pval.size = 4, # show p-value of log-rank test.
+  #conf.int = TRUE, conf.int.style = "step", # customize style of confidence intervals
+  xlab = "Time in Months",  # customize X axis label.
+  break.time.by = 1,    # break X axis in time intervals by 200.
+  ggtheme = theme_bw(), 
+  xlim= c(12, 21),# customize plot and risk table with a theme.
+  pval.coord = c(12,0.25),
+  #surv.median.line = "hv",  # add the median survival pointer.
+  legend = c("right"),
+  legend.title = "Dir",
+  legend.labs = c("North", "South"),    # change legend labels.
+  #palette = c("#E7B800", "#2E9FDF"), # custom color palettes
+  
+  #risk.table = "absolute",  # absolute number and percentage at risk.
+  #risk.table.fontsize = 3,# colour risk table text annotations.
+  #risk.table.y.text = FALSE,# show bars instead of names in text annotations
+  #ncensor.plot = TRUE      # plot the number of censored subjects at time t
+)
+```
+
+Survival analyses focused on 9 most common species
+
+```{r}
+#15 or more
+df_commons <- df1 %>% filter(Species %in% c("DCLI", "DSTO", "DSTR", "MCAV", "MMEA", "PAST", "SBOU", "SINT", "SSID")) #keeping only the 9 most common species 
+#xtabs(~Species+Channel, data = df_commons)
+```
+
+```{r}
+# Fit Cox Model
+cox_fit2 <- coxph(Surv(months, census)~ Channel + Habitat + Dir + Species, data=df_commons)
+cox_fit2
+```
+
+```{r}
+Anova(cox_fit2)
+```
+
+Species then Habitat significant.
+
+
+```{r Dir_survplot_sp}
+ggsurvplot(
+  survfit(Surv(months, census)~ Habitat, data=df_commons),  # survfit object with calculated statistics
+  pval = TRUE, pval.size = 4, # show p-value of log-rank test.
+  #conf.int = TRUE, conf.int.style = "step", # customize style of confidence intervals
+  xlab = "Time in Months",  # customize X axis label.
+  break.time.by = 1,    # break X axis in time intervals by 200.
+  ggtheme = theme_bw(), 
+  xlim= c(12, 21),# customize plot and risk table with a theme.
+  pval.coord = c(12,0.25),
+  surv.median.line = "hv",  # add the median survival pointer.
+  legend = c("top"),
+  legend.title = "Habitat",
+  legend.labs = c("1", "2", "3"),    # change legend labels.
+  #palette = c("black", "red"), # custom color palettes
+  
+  #risk.table = "percentage",  # absolute number and percentage at risk.
+  #risk.table.fontsize = 3,# colour risk table text annotations.
+  #risk.table.y.text = FALSE,# show bars instead of names in text annotations
+  #ncensor.plot = TRUE      # plot the number of censored subjects at time t
+)
+```
+
+
+```{r CommonSP_survplot}
+ggsurvplot(
+  survfit(Surv(months, census)~ Species, data=df_commons),  # survfit object with calculated statistics
+  pval = TRUE, pval.size = 4, # show p-value of log-rank test.
+  #conf.int = TRUE, conf.int.style = "step", # customize style of confidence intervals
+  xlab = "Time in Months",  # customize X axis label.
+  break.time.by = 1,    # break X axis in time intervals by 200.
+  ggtheme = theme_bw(), 
+  xlim= c(12, 21),# customize plot and risk table with a theme.
+  pval.coord = c(12,0.25),
+  surv.median.line = "hv",  # add the median survival pointer.
+  legend = c("right"),
+  legend.title = "Species",
+  #legend.labs = c("Not Buried", "Buried"),    # change legend labels.
+  #palette = c("black", "red"), # custom color palettes
+  
+  #risk.table = "percentage",  # absolute number and percentage at risk.
+  #risk.table.fontsize = 3,# colour risk table text annotations.
+  #risk.table.y.text = FALSE,# show bars instead of names in text annotations
+  #ncensor.plot = TRUE      # plot the number of censored subjects at time t
+)
+```
+
+
+```{r}
+summary(survfit(Surv(months, census) ~ Species, data = df_commons), times = 21)
+```
