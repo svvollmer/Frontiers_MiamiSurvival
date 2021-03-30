@@ -46,11 +46,13 @@ library(Hmisc)
 res2 <-rcorr(as.matrix(df_corr))
 res2
 ```
+
 ```{r correlation plot}
 library(corrplot)
 corrplot(res, type = "upper", order = "hclust",
          tl.col = "black", tl.srt = 45)
 ```
+
 ```{r}
 # Insignificant correlation are crossed
 corrplot(res2$r, type="upper", order="hclust", 
@@ -71,7 +73,9 @@ corrplot(res2$r, type="upper", order="hclust",
 0 = no observed condition; 1 = diseased; 3 = bleaching; 5 = buried; and then additive combos to produce unique numbers. Condider recoding numbers to unique states.
 
 ```{r state by species}
-xtabs(~Species+States, data = df)
+sp_state <- as_tibble(xtabs(~Species+States, data = df))
+kbl(sp_state) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 Table shows the conditions by species where disease is a focus of this analysis including species specific patterns of disease susceptibility to SCTLD in particular.
 
@@ -120,6 +124,7 @@ ggsurvplot(
   #ncensor.plot = TRUE      # plot the number of censored subjects at time t
 )
 ```
+
 ```{r Dir_survplot}
 ggsurvplot(
   survfit(Surv(months, census)~ Dir, data=df1),  # survfit object with calculated statistics
