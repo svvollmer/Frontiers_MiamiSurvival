@@ -1,0 +1,74 @@
+---
+title: "State Correlation Analyses"
+output: github_document
+always_allow_html: true
+---
+
+Markdown code for the survival analyses of the Port of Miami data examining the main effects of channel (i.e. dredging impact), reef habitat, and direction. Survival analyses used to tease apart species specific differences as well as the impact of state (or condition) specifically whether the corals were observed to be buried, bleached or diseased. Each variable is coded as 0 (absence) or 1 (presence) as well as in combination in the states column.
+
+```{r setup}
+rm(list = ls())
+knitr::opts_chunk$set(echo = TRUE, error = FALSE, fig.path='Figures/', dev=c('png', 'pdf'))
+```
+
+All figures exported to Figures/folder as png and pdf
+
+```{r libraries}
+library(knitr)
+library(survival)
+library(coda)
+library(survminer)
+library(dplyr)
+library(ggplot2)
+library(car)
+library(tidyverse)
+library(kableExtra)
+#library(gtsummary) #not loading properly
+```
+
+```{r import data}
+df=read.csv("9sp_perc.csv") #time by months; excludes missing corals
+glimpse(df)
+```
+
+```{r}
+library(reshape2)
+df_w <- dcast(df, Species ~ State, value.var="Perc")
+df_w
+```
+
+```{r Corellation Matrix}
+#Select 
+df_corr <- df_w %>% select(Mortality, Buried, Disease, Bleaching, Normal)
+head(df_corr)
+res <- cor(df_corr)
+round(res,2)
+```
+
+```{r}
+library(Hmisc)
+res2 <-rcorr(as.matrix(df_corr))
+res2
+```
+
+```{r correlation plot}
+library(corrplot)
+corrplot(res, type = "upper", order = "hclust",
+         tl.col = "black", tl.srt = 45)
+```
+
+```{r}
+# Insignificant correlation are crossed
+corrplot(res2$r, type="upper", order="hclust", 
+         p.mat = res2$P, sig.level = 0.01, insig = "blank")
+# Insignificant correlations are leaved blank
+corrplot(res2$r, type="upper", order="hclust", 
+         p.mat = res2$P, sig.level = 0.01, insig = "blank")
+```
+
+```{r}
+ggplot(data=df_w, mapping = aes(x = Mortality, y = Disease, color = Species)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+
