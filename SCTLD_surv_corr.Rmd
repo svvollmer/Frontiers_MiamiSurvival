@@ -27,19 +27,19 @@ library(kableExtra)
 ```
 
 ```{r import data}
-df=read.csv("9sp_perc.csv") #time by months; excludes missing corals
+df=read.csv("9sp_corr.csv") #time by months; excludes missing corals
 glimpse(df)
 ```
 
 ```{r}
 library(reshape2)
-df_w <- dcast(df, Species ~ State, value.var="Perc")
+df_w <- dcast(df, Species ~ Condition, value.var="Percentage")
 df_w
 ```
 
 ```{r Corellation Matrix}
 #Select 
-df_corr <- df_w %>% select(Mortality, Buried, Disease, Bleaching, Normal)
+df_corr <- df_w %>% select(Mortality, Buried, Disease, Bleaching, Normal, "Partial Mortality")
 head(df_corr)
 res <- cor(df_corr)
 round(res,2)
