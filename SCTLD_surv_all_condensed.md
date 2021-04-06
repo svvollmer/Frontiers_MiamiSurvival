@@ -2112,3 +2112,84 @@ summary(survfit(Surv(months, census) ~ Species, data = df_commons), times = 21)
     ##      21.0000      62.0000      21.0000       0.8899       0.0304       0.8323 
     ## upper 95% CI 
     ##       0.9515
+
+``` r
+res <- summary(survfit(Surv(months, census) ~ Species, data = df_commons), times = 21)
+cols <- lapply(c(1:7, 8:11) , function(x) res[x])
+tbl <- do.call(data.frame, cols)
+head(tbl)
+```
+
+    ##      n time n.risk n.event n.censor       surv    std.err    cumhaz   std.chaz
+    ## 1  374   21     17      33      341 0.46069141 0.08412055 0.7020527 0.15863153
+    ## 2 1628   21     74     161     1467 0.20932415 0.03437194 1.1351217 0.10592275
+    ## 3  352   21     16      46      306 0.05273692 0.03602830 1.5885417 0.26992034
+    ## 4 2046   21     93      30     2016 0.81275376 0.03483028 0.1978495 0.04056597
+    ## 5 1122   21     51     201      921 0.03974448 0.01574225 1.8115624 0.15452951
+    ## 6 2112   21     96      37     2075 0.84301882 0.03001204 0.1660594 0.03432698
+    ##         strata  type
+    ## 1 Species=DCLI right
+    ## 2 Species=DSTO right
+    ## 3 Species=DSTR right
+    ## 4 Species=MCAV right
+    ## 5 Species=MMEA right
+    ## 6 Species=PAST right
+
+``` r
+tbl_surv <- tbl %>% select(strata, n, surv, std.err)
+tbl_surv
+```
+
+    ##         strata    n       surv    std.err
+    ## 1 Species=DCLI  374 0.46069141 0.08412055
+    ## 2 Species=DSTO 1628 0.20932415 0.03437194
+    ## 3 Species=DSTR  352 0.05273692 0.03602830
+    ## 4 Species=MCAV 2046 0.81275376 0.03483028
+    ## 5 Species=MMEA 1122 0.03974448 0.01574225
+    ## 6 Species=PAST 2112 0.84301882 0.03001204
+    ## 7 Species=SBOU 2420 0.76076290 0.03300994
+    ## 8 Species=SINT  902 1.00000000 0.00000000
+    ## 9 Species=SSID 1364 0.88990002 0.03040655
+
+``` r
+tbl_surv %>% ggplot(aes(x=surv, y=strata)) +
+  geom_point() + 
+  geom_errorbar(aes(x = surv, y = strata, ymin = strata - std.err, ymax = strata + std.err  ))
+```
+
+    ## Warning in Ops.factor(strata, std.err): '-' not meaningful for factors
+
+    ## Warning in Ops.factor(strata, std.err): '+' not meaningful for factors
+
+![](Figures/plot%20genotype%20survival-1.png)<!-- -->
+
+``` r
+# Black error bars - notice the mapping of 'group=supp' -- without it, the error
+# bars won't be dodged!
+ggplot(tbl_surv, aes(x = reorder(strata, surv), y=surv)) + 
+  geom_errorbar(aes(ymin=surv-std.err, ymax=surv+std.err), colour="black", width=.1) +
+  geom_point(stat = "identity", size=3) + 
+  theme_bw() +
+  xlab("Coral Species") +
+  ylab("Survivorship (SE)") +
+  ggtitle("Survival in 9 Most Common Corals in PortMiami Dredge Project") +
+  guides(x = guide_axis(angle = 90))
+```
+
+![](Figures/species%20survival%20plot%20se-1.png)<!-- -->
+
+``` r
+# Black error bars - notice the mapping of 'group=supp' -- without it, the error
+# bars won't be dodged!
+SurvPlot <- ggplot(tbl_surv, aes(x = reorder(rownames(tbl_surv), surv), y=surv)) + 
+  geom_errorbar(aes(ymin=surv-std.err, ymax=surv+std.err), colour="black", width=.1) +
+  geom_point(stat = "identity", size=3) + 
+  theme_bw() +
+  xlab("Staghorn Genotype") +
+  ylab("Survivorship (SE)") +
+  ggtitle("Outplant survival over 300 days") +
+  guides(x = guide_axis(angle = 90))
+ggsave("SurvPlot.pdf")
+```
+
+    ## Saving 7 x 5 in image

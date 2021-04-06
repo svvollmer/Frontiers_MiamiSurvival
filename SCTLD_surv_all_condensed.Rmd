@@ -220,3 +220,47 @@ ggsurvplot(
 ```{r}
 summary(survfit(Surv(months, census) ~ Species, data = df_commons), times = 21)
 ```
+
+```{r}
+res <- summary(survfit(Surv(months, census) ~ Species, data = df_commons), times = 21)
+cols <- lapply(c(1:7, 8:11) , function(x) res[x])
+tbl <- do.call(data.frame, cols)
+head(tbl)
+
+tbl_surv <- tbl %>% select(strata, n, surv, std.err)
+tbl_surv
+```
+
+```{r plot genotype survival}
+tbl_surv %>% ggplot(aes(x=surv, y=strata)) +
+  geom_point() + 
+  geom_errorbar(aes(x = surv, y = strata, ymin = strata - std.err, ymax = strata + std.err  ))
+```
+
+```{r species survival plot se}
+# Black error bars - notice the mapping of 'group=supp' -- without it, the error
+# bars won't be dodged!
+ggplot(tbl_surv, aes(x = reorder(strata, surv), y=surv)) + 
+  geom_errorbar(aes(ymin=surv-std.err, ymax=surv+std.err), colour="black", width=.1) +
+  geom_point(stat = "identity", size=3) + 
+  theme_bw() +
+  xlab("Coral Species") +
+  ylab("Survivorship (SE)") +
+  ggtitle("Survival in 9 Most Common Corals in PortMiami Dredge Project") +
+  guides(x = guide_axis(angle = 90))
+    
+```
+
+```{r}
+# Black error bars - notice the mapping of 'group=supp' -- without it, the error
+# bars won't be dodged!
+SurvPlot <- ggplot(tbl_surv, aes(x = reorder(rownames(tbl_surv), surv), y=surv)) + 
+  geom_errorbar(aes(ymin=surv-std.err, ymax=surv+std.err), colour="black", width=.1) +
+  geom_point(stat = "identity", size=3) + 
+  theme_bw() +
+  xlab("Staghorn Genotype") +
+  ylab("Survivorship (SE)") +
+  ggtitle("Outplant survival over 300 days") +
+  guides(x = guide_axis(angle = 90))
+ggsave("SurvPlot.pdf")
+```
