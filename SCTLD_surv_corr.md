@@ -101,6 +101,14 @@ glimpse(df)
     ## $ Percentage        <dbl> 0.29411765, 0.66216216, 0.87500000, 0.11827957, 0.9…
 
 ``` r
+df %>% filter(Condition %in% c("Bleaching","Disease","Mortality")) %>%
+     ggplot(aes(fill=Condition, y=Percentage, x = Species)) +
+        geom_bar(position = "fill", stat = "identity")
+```
+
+![](Figures/bar%20plot-1.png)<!-- -->
+
+``` r
 library(reshape2)
 ```
 

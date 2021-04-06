@@ -31,6 +31,12 @@ df=read.csv("9sp_corr.csv") #time by months; excludes missing corals
 glimpse(df)
 ```
 
+```{r bar plot}
+df %>% filter(Condition %in% c("Bleaching","Disease","Mortality")) %>%
+     ggplot(aes(fill=Condition, y=Percentage, x = Species)) +
+        geom_bar(position = "fill", stat = "identity")
+```
+
 ```{r}
 library(reshape2)
 df_w <- dcast(df, Species ~ Condition, value.var="Percentage")
