@@ -102,6 +102,7 @@ Anova(cox_fit)
 ```
 NS channel effect on mortality, but Habitat and Direction both significant.
 
+
 ```{r Habitat_survplot}
 ggsurvplot(
   survfit(Surv(months, census)~ Habitat, data=df1),  # survfit object with calculated statistics

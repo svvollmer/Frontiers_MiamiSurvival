@@ -106,7 +106,8 @@ Double check, but exp(coef) is the relative hazards ratio and its se. Not sure w
 Anova(cox_fit_int)
 ```
 NS channel effect on mortality, but Habitat and Direction both significant.
-``{r Cox Main Effects}
+
+```{r Cox Main Effects}
 # Fit Cox Model
 cox_fit_add<- coxph(Surv(months, census)~ Channel + Habitat + Dir, data=df1)
 cox_fit_add
