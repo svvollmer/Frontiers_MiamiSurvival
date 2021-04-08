@@ -46,6 +46,7 @@ library(Hmisc)
 res2 <-rcorr(as.matrix(df_corr))
 res2
 ```
+
 ```{r correlation plot}
 library(corrplot)
 corrplot(res, type = "upper", order = "hclust",
@@ -95,17 +96,27 @@ ggsurvplot(
 
 ```{r Cox Main Effects}
 # Fit Cox Model
-cox_fit<- coxph(Surv(months, census)~ Channel + Habitat + Dir, data=df1)
-cox_fit
+cox_fit_int<- coxph(Surv(months, census)~ Channel*Habitat*Dir, data=df1)
+cox_fit_int
 ```
 
 Double check, but exp(coef) is the relative hazards ratio and its se. Not sure what the HR is for habitat which should have 3 states?
 
 ```{r ANOVA Cox Main Effects}
-Anova(cox_fit)
+Anova(cox_fit_int)
 ```
 NS channel effect on mortality, but Habitat and Direction both significant.
+``{r Cox Main Effects}
+# Fit Cox Model
+cox_fit_add<- coxph(Surv(months, census)~ Channel + Habitat + Dir, data=df1)
+cox_fit_add
+```
 
+Double check, but exp(coef) is the relative hazards ratio and its se. Not sure what the HR is for habitat which should have 3 states?
+
+```{r ANOVA Cox Main Effects}
+Anova(cox_fit_add)
+```
 ```{r Habitat_survplot}
 ggsurvplot(
   survfit(Surv(months, census)~ Habitat, data=df1),  # survfit object with calculated statistics
