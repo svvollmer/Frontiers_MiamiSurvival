@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE, error = FALSE, fig.path='Figures/', dev=c('pn
 
 All figures exported to Figures/folder as png and pdf
 
-```{r libraries}
+```{r libraries, include=FALSE}
 library(knitr)
 library(survival)
 library(coda)
@@ -23,7 +23,10 @@ library(ggplot2)
 library(car)
 library(tidyverse)
 library(kableExtra)
-#library(gtsummary) #not loading properly
+library(ggpubr)
+library(ggrepel)
+library(patchwork)
+#theme_bw()
 ```
 
 ```{r import data}
@@ -31,16 +34,63 @@ df=read.csv("9sp_corr.csv") #time by months; excludes missing corals
 glimpse(df)
 ```
 
-```{r bar plot}
-df %>% filter(Condition %in% c("Bleaching","Disease","Mortality")) %>%
-     ggplot(aes(fill=Condition, y=Percentage, x = Species)) +
-        geom_bar(position = "fill", stat = "identity")
+```{r bar plot all conditions facet}
+df %>% filter(Condition %in% c("Bleaching","Disease","Buried", "Partial Burial","Partial Mortality","Mortality")) %>%
+  mutate(prop = Value/Total.Individuals) %>%
+  ggplot(aes(y=Species, x = prop)) +
+  geom_bar(position = "stack", stat = "identity") +
+  facet_wrap(~Condition)
+```
+
+```{r dot plot all conditions facet}
+df %>% filter(Condition %in% c("Bleaching","Disease","Buried", "Partial Burial","Partial Mortality","Mortality")) %>%
+  mutate(prop = Value/Total.Individuals*100) %>%
+  ggdotchart(x="Species", y = "prop",
+             color = "Condition",
+             rotate = TRUE,
+             add = "segments",
+             dot.size = 6,
+             label = "Value",
+             repel = FALSE,
+             xlab = "Top 9 Coral Species",
+             ylab = "Percentage of Corals with Condition",
+             font.label = list(color = "white", size = 9, vjust = 0.5),
+             facet.by = "Condition")
+```
+```{r dot plot major conditions facet}
+df %>% filter(Condition %in% c("Bleaching","Disease","Buried","Mortality")) %>%
+  mutate(prop = Value/Total.Individuals*100) %>%
+  ggdotchart(x="Species", y = "prop",
+             color = "Condition",
+             rotate = TRUE,
+             add = "segments",
+             dot.size = 6,
+             label = "Value",
+             repel = FALSE,
+             xlab = "Top 9 Coral Species",
+             ylab = "Percentage of Corals with Condition",
+             font.label = list(color = "white", size = 9, vjust = 0.5),
+             facet.by = "Condition")
+```
+```{r dot plot major conditions BEST}
+df %>% filter(Condition %in% c("Bleaching","Disease","Buried","Mortality")) %>%
+  mutate(prop = Value/Total.Individuals*100) %>%
+  ggdotchart(x="Species", y = "prop",
+             color = "Condition",
+             rotate = TRUE,
+             add = "segments",
+             dot.size = 5,
+             label = "Value",
+             repel = FALSE,
+             xlab = "Top 9 Coral Species",
+             ylab = "Percentage of Corals with Condition",
+             font.label = list(color = "white", size = 9, vjust = 0.5))
 ```
 
 ```{r}
 library(reshape2)
 df_w <- dcast(df, Species ~ Condition, value.var="Percentage")
-df_w
+kable(df_w)
 ```
 
 ```{r Corellation Matrix}
@@ -60,19 +110,21 @@ res2
 ```{r correlation plot}
 library(corrplot)
 corrplot(res, type = "upper", order = "hclust",
-         tl.col = "black", tl.srt = 45)
+         tl.col = "black", tl.srt = 45, 
+         addCoef.col = "black",
+         p.mat = res2$P, sig.level = 0.05,
+         diag = FALSE)
 ```
 
-```{r}
-# Insignificant correlation are crossed
+```{r significant correlations BEST}
 corrplot(res2$r, type="upper", order="hclust", 
-         p.mat = res2$P, sig.level = 0.01, insig = "blank")
-# Insignificant correlations are leaved blank
-corrplot(res2$r, type="upper", order="hclust", 
-         p.mat = res2$P, sig.level = 0.01, insig = "blank")
+         tl.col = "black", tl.srt = 45, 
+         addCoef.col = "white",
+         p.mat = res2$P, sig.level = 0.05, insig = "blank",
+         diag = FALSE)
 ```
 
-```{r}
+```{r relationship between disease and mortality}
 ggplot(data=df_w, mapping = aes(x = Mortality, y = Disease, color = Species)) +
   geom_point() +
   geom_smooth(method = "lm")

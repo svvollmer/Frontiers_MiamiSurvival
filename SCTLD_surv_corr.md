@@ -17,96 +17,80 @@ knitr::opts_chunk$set(echo = TRUE, error = FALSE, fig.path='Figures/', dev=c('pn
 All figures exported to Figures/folder as png and pdf
 
 ``` r
-library(knitr)
-library(survival)
-library(coda)
-library(survminer)
-```
-
-    ## Loading required package: ggplot2
-
-    ## Loading required package: ggpubr
-
-``` r
-library(dplyr)
-```
-
-    ## 
-    ## Attaching package: 'dplyr'
-
-    ## The following objects are masked from 'package:stats':
-    ## 
-    ##     filter, lag
-
-    ## The following objects are masked from 'package:base':
-    ## 
-    ##     intersect, setdiff, setequal, union
-
-``` r
-library(ggplot2)
-library(car)
-```
-
-    ## Loading required package: carData
-
-    ## 
-    ## Attaching package: 'car'
-
-    ## The following object is masked from 'package:dplyr':
-    ## 
-    ##     recode
-
-``` r
-library(tidyverse)
-```
-
-    ## ── Attaching packages ─────────────────────────────────────── tidyverse 1.3.0 ──
-
-    ## ✓ tibble  3.0.4     ✓ purrr   0.3.4
-    ## ✓ tidyr   1.1.2     ✓ stringr 1.4.0
-    ## ✓ readr   1.4.0     ✓ forcats 0.5.0
-
-    ## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
-    ## x dplyr::filter() masks stats::filter()
-    ## x dplyr::lag()    masks stats::lag()
-    ## x car::recode()   masks dplyr::recode()
-    ## x purrr::some()   masks car::some()
-
-``` r
-library(kableExtra)
-```
-
-    ## 
-    ## Attaching package: 'kableExtra'
-
-    ## The following object is masked from 'package:dplyr':
-    ## 
-    ##     group_rows
-
-``` r
-#library(gtsummary) #not loading properly
-```
-
-``` r
 df=read.csv("9sp_corr.csv") #time by months; excludes missing corals
 glimpse(df)
 ```
 
     ## Rows: 63
     ## Columns: 5
-    ## $ Species           <chr> "DCLI", "DSTO", "DSTR", "MCAV", "MMEA", "PAST", "SB…
-    ## $ Condition         <chr> "Mortality", "Mortality", "Mortality", "Mortality",…
-    ## $ Value             <int> 5, 49, 14, 11, 47, 7, 14, 0, 3, 4, 24, 8, 29, 24, 1…
-    ## $ Total.Individuals <int> 17, 74, 16, 93, 51, 96, 110, 41, 62, 17, 74, 16, 93…
-    ## $ Percentage        <dbl> 0.29411765, 0.66216216, 0.87500000, 0.11827957, 0.9…
+    ## $ Species           <chr> "DCLI", "DSTO", "DSTR", "MCAV", "MMEA", "PAST", "SBO…
+    ## $ Condition         <chr> "Mortality", "Mortality", "Mortality", "Mortality", …
+    ## $ Value             <int> 5, 49, 14, 11, 47, 7, 14, 0, 3, 4, 24, 8, 29, 24, 1,…
+    ## $ Total.Individuals <int> 17, 74, 16, 93, 51, 96, 110, 41, 62, 17, 74, 16, 93,…
+    ## $ Percentage        <dbl> 0.29411765, 0.66216216, 0.87500000, 0.11827957, 0.92…
 
 ``` r
-df %>% filter(Condition %in% c("Bleaching","Disease","Mortality")) %>%
-     ggplot(aes(fill=Condition, y=Percentage, x = Species)) +
-        geom_bar(position = "fill", stat = "identity")
+df %>% filter(Condition %in% c("Bleaching","Disease","Buried", "Partial Burial","Partial Mortality","Mortality")) %>%
+  mutate(prop = Value/Total.Individuals) %>%
+  ggplot(aes(y=Species, x = prop)) +
+  geom_bar(position = "stack", stat = "identity") +
+  facet_wrap(~Condition)
 ```
 
-![](Figures/bar%20plot-1.png)<!-- -->
+![](Figures/bar%20plot%20all%20conditions%20facet-1.png)<!-- -->
+
+``` r
+df %>% filter(Condition %in% c("Bleaching","Disease","Buried", "Partial Burial","Partial Mortality","Mortality")) %>%
+  mutate(prop = Value/Total.Individuals*100) %>%
+  ggdotchart(x="Species", y = "prop",
+             color = "Condition",
+             rotate = TRUE,
+             add = "segments",
+             dot.size = 6,
+             label = "Value",
+             repel = FALSE,
+             xlab = "Top 9 Coral Species",
+             ylab = "Percentage of Corals with Condition",
+             font.label = list(color = "white", size = 9, vjust = 0.5),
+             facet.by = "Condition")
+```
+
+![](Figures/dot%20plot%20all%20conditions%20facet-1.png)<!-- -->
+
+``` r
+df %>% filter(Condition %in% c("Bleaching","Disease","Buried","Mortality")) %>%
+  mutate(prop = Value/Total.Individuals*100) %>%
+  ggdotchart(x="Species", y = "prop",
+             color = "Condition",
+             rotate = TRUE,
+             add = "segments",
+             dot.size = 6,
+             label = "Value",
+             repel = FALSE,
+             xlab = "Top 9 Coral Species",
+             ylab = "Percentage of Corals with Condition",
+             font.label = list(color = "white", size = 9, vjust = 0.5),
+             facet.by = "Condition")
+```
+
+![](Figures/dot%20plot%20major%20conditions%20facet-1.png)<!-- -->
+
+``` r
+df %>% filter(Condition %in% c("Bleaching","Disease","Buried","Mortality")) %>%
+  mutate(prop = Value/Total.Individuals*100) %>%
+  ggdotchart(x="Species", y = "prop",
+             color = "Condition",
+             rotate = TRUE,
+             add = "segments",
+             dot.size = 5,
+             label = "Value",
+             repel = FALSE,
+             xlab = "Top 9 Coral Species",
+             ylab = "Percentage of Corals with Condition",
+             font.label = list(color = "white", size = 9, vjust = 0.5))
+```
+
+![](Figures/dot%20plot%20major%20conditions%20BEST-1.png)<!-- -->
 
 ``` r
 library(reshape2)
@@ -121,29 +105,275 @@ library(reshape2)
 
 ``` r
 df_w <- dcast(df, Species ~ Condition, value.var="Percentage")
-df_w
+kable(df_w)
 ```
 
-    ##   Species  Bleaching     Buried    Disease  Mortality     Normal Partial Burial
-    ## 1    DCLI 0.00000000 0.00000000 0.23529412 0.29411765 0.05882353      0.7647059
-    ## 2    DSTO 0.01351351 0.04054054 0.32432432 0.66216216 0.04054054      0.6621622
-    ## 3    DSTR 0.06250000 0.00000000 0.50000000 0.87500000 0.00000000      0.2500000
-    ## 4    MCAV 0.07526882 0.00000000 0.31182796 0.11827957 0.24731183      0.5268817
-    ## 5    MMEA 0.21568628 0.00000000 0.47058824 0.92156863 0.01960784      0.5490196
-    ## 6    PAST 0.15625000 0.07291667 0.01041667 0.07291667 0.37500000      0.4895833
-    ## 7    SBOU 0.01818182 0.06363636 0.12727273 0.12727273 0.10909091      0.7727273
-    ## 8    SINT 0.46341463 0.09756098 0.00000000 0.00000000 0.07317073      0.8292683
-    ## 9    SSID 0.12903226 0.09677419 0.00000000 0.04838710 0.38709677      0.4838710
-    ##   Partial Mortality
-    ## 1         0.6470588
-    ## 2         0.4324324
-    ## 3         0.2500000
-    ## 4         0.2580645
-    ## 5         0.3921569
-    ## 6         0.2187500
-    ## 7         0.6454545
-    ## 8         0.4878049
-    ## 9         0.3548387
+<table>
+<thead>
+<tr>
+<th style="text-align:left;">
+Species
+</th>
+<th style="text-align:right;">
+Bleaching
+</th>
+<th style="text-align:right;">
+Buried
+</th>
+<th style="text-align:right;">
+Disease
+</th>
+<th style="text-align:right;">
+Mortality
+</th>
+<th style="text-align:right;">
+Normal
+</th>
+<th style="text-align:right;">
+Partial Burial
+</th>
+<th style="text-align:right;">
+Partial Mortality
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+DCLI
+</td>
+<td style="text-align:right;">
+0.0000000
+</td>
+<td style="text-align:right;">
+0.0000000
+</td>
+<td style="text-align:right;">
+0.2352941
+</td>
+<td style="text-align:right;">
+0.2941176
+</td>
+<td style="text-align:right;">
+0.0588235
+</td>
+<td style="text-align:right;">
+0.7647059
+</td>
+<td style="text-align:right;">
+0.6470588
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+DSTO
+</td>
+<td style="text-align:right;">
+0.0135135
+</td>
+<td style="text-align:right;">
+0.0405405
+</td>
+<td style="text-align:right;">
+0.3243243
+</td>
+<td style="text-align:right;">
+0.6621622
+</td>
+<td style="text-align:right;">
+0.0405405
+</td>
+<td style="text-align:right;">
+0.6621622
+</td>
+<td style="text-align:right;">
+0.4324324
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+DSTR
+</td>
+<td style="text-align:right;">
+0.0625000
+</td>
+<td style="text-align:right;">
+0.0000000
+</td>
+<td style="text-align:right;">
+0.5000000
+</td>
+<td style="text-align:right;">
+0.8750000
+</td>
+<td style="text-align:right;">
+0.0000000
+</td>
+<td style="text-align:right;">
+0.2500000
+</td>
+<td style="text-align:right;">
+0.2500000
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+MCAV
+</td>
+<td style="text-align:right;">
+0.0752688
+</td>
+<td style="text-align:right;">
+0.0000000
+</td>
+<td style="text-align:right;">
+0.3118280
+</td>
+<td style="text-align:right;">
+0.1182796
+</td>
+<td style="text-align:right;">
+0.2473118
+</td>
+<td style="text-align:right;">
+0.5268817
+</td>
+<td style="text-align:right;">
+0.2580645
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+MMEA
+</td>
+<td style="text-align:right;">
+0.2156863
+</td>
+<td style="text-align:right;">
+0.0000000
+</td>
+<td style="text-align:right;">
+0.4705882
+</td>
+<td style="text-align:right;">
+0.9215686
+</td>
+<td style="text-align:right;">
+0.0196078
+</td>
+<td style="text-align:right;">
+0.5490196
+</td>
+<td style="text-align:right;">
+0.3921569
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+PAST
+</td>
+<td style="text-align:right;">
+0.1562500
+</td>
+<td style="text-align:right;">
+0.0729167
+</td>
+<td style="text-align:right;">
+0.0104167
+</td>
+<td style="text-align:right;">
+0.0729167
+</td>
+<td style="text-align:right;">
+0.3750000
+</td>
+<td style="text-align:right;">
+0.4895833
+</td>
+<td style="text-align:right;">
+0.2187500
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+SBOU
+</td>
+<td style="text-align:right;">
+0.0181818
+</td>
+<td style="text-align:right;">
+0.0636364
+</td>
+<td style="text-align:right;">
+0.1272727
+</td>
+<td style="text-align:right;">
+0.1272727
+</td>
+<td style="text-align:right;">
+0.1090909
+</td>
+<td style="text-align:right;">
+0.7727273
+</td>
+<td style="text-align:right;">
+0.6454545
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+SINT
+</td>
+<td style="text-align:right;">
+0.4634146
+</td>
+<td style="text-align:right;">
+0.0975610
+</td>
+<td style="text-align:right;">
+0.0000000
+</td>
+<td style="text-align:right;">
+0.0000000
+</td>
+<td style="text-align:right;">
+0.0731707
+</td>
+<td style="text-align:right;">
+0.8292683
+</td>
+<td style="text-align:right;">
+0.4878049
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+SSID
+</td>
+<td style="text-align:right;">
+0.1290323
+</td>
+<td style="text-align:right;">
+0.0967742
+</td>
+<td style="text-align:right;">
+0.0000000
+</td>
+<td style="text-align:right;">
+0.0483871
+</td>
+<td style="text-align:right;">
+0.3870968
+</td>
+<td style="text-align:right;">
+0.4838710
+</td>
+<td style="text-align:right;">
+0.3548387
+</td>
+</tr>
+</tbody>
+</table>
 
 ``` r
 #Select 
@@ -224,21 +454,23 @@ library(corrplot)
 
 ``` r
 corrplot(res, type = "upper", order = "hclust",
-         tl.col = "black", tl.srt = 45)
+         tl.col = "black", tl.srt = 45, 
+         addCoef.col = "black",
+         p.mat = res2$P, sig.level = 0.05,
+         diag = FALSE)
 ```
 
 ![](Figures/correlation%20plot-1.png)<!-- -->
 
 ``` r
-# Insignificant correlation are crossed
 corrplot(res2$r, type="upper", order="hclust", 
-         p.mat = res2$P, sig.level = 0.01, insig = "blank")
-# Insignificant correlations are leaved blank
-corrplot(res2$r, type="upper", order="hclust", 
-         p.mat = res2$P, sig.level = 0.01, insig = "blank")
+         tl.col = "black", tl.srt = 45, 
+         addCoef.col = "white",
+         p.mat = res2$P, sig.level = 0.05, insig = "blank",
+         diag = FALSE)
 ```
 
-![](Figures/unnamed-chunk-3-1.png)<!-- -->
+![](Figures/significant%20correlations%20BEST-1.png)<!-- -->
 
 ``` r
 ggplot(data=df_w, mapping = aes(x = Mortality, y = Disease, color = Species)) +
@@ -248,4 +480,4 @@ ggplot(data=df_w, mapping = aes(x = Mortality, y = Disease, color = Species)) +
 
     ## `geom_smooth()` using formula 'y ~ x'
 
-![](Figures/unnamed-chunk-4-1.png)<!-- -->
+![](Figures/relationship%20between%20disease%20and%20mortality-1.png)<!-- -->
