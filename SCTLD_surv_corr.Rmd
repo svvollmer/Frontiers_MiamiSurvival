@@ -128,8 +128,9 @@ corrplot(res2$r, type="upper", order="hclust",
 ggscatter(df_w, y = "Mortality", x = "Disease",
        add = "reg.line",
        conf.int = TRUE,
-       color = "Species", 
-       add.params = list(color = "gray",
+       label = "Species",
+       repel = TRUE,
+       add.params = list(color = "grey",
                          fill = "lightgray")
        ) + 
   stat_cor() #Add correlation coeff
