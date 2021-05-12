@@ -125,8 +125,13 @@ corrplot(res2$r, type="upper", order="hclust",
 ```
 
 ```{r relationship between disease and mortality}
-ggplot(data=df_w, mapping = aes(x = Mortality, y = Disease, color = Species)) +
-  geom_point() +
-  geom_smooth(method = "lm")
+ggscatter(df_w, y = "Mortality", x = "Disease",
+       add = "reg.line",
+       conf.int = TRUE,
+       color = "Species", 
+       add.params = list(color = "gray",
+                         fill = "lightgray")
+       ) + 
+  stat_cor() #Add correlation coeff
 ```
 

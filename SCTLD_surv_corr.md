@@ -473,9 +473,14 @@ corrplot(res2$r, type="upper", order="hclust",
 ![](Figures/significant%20correlations%20BEST-1.png)<!-- -->
 
 ``` r
-ggplot(data=df_w, mapping = aes(x = Mortality, y = Disease, color = Species)) +
-  geom_point() +
-  geom_smooth(method = "lm")
+ggscatter(df_w, y = "Mortality", x = "Disease",
+       add = "reg.line",
+       conf.int = TRUE,
+       color = "Species", 
+       add.params = list(color = "gray",
+                         fill = "lightgray")
+       ) + 
+  stat_cor() #Add correlation coeff
 ```
 
     ## `geom_smooth()` using formula 'y ~ x'
