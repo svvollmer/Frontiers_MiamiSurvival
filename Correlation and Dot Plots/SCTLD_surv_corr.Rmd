@@ -1,0 +1,196 @@
+---
+title: "State Correlation Analyses"
+output: html_document
+always_allow_html: true
+---
+
+Markdown code for the survival analyses of the Port of Miami data examining the main effects of channel (i.e. dredging impact), reef habitat, and direction. Survival analyses used to tease apart species specific differences as well as the impact of state (or condition) specifically whether the corals were observed to be buried, bleached or diseased. Each variable is coded as 0 (absence) or 1 (presence) as well as in combination in the states column.
+
+```{r setup}
+rm(list = ls())
+knitr::opts_chunk$set(echo = TRUE, error = FALSE)
+```
+
+
+```{r libraries, include=FALSE}
+#Load Packages
+library(knitr)
+library(survival)
+library(coda)
+library(survminer)
+library(dplyr)
+library(ggplot2)
+library(car)
+library(tidyverse)
+library(kableExtra)
+library(ggpubr)
+library(ggrepel)
+library(patchwork)
+library("ggsci")
+library("gridExtra")
+library(rstatix)
+theme_bw()
+```
+
+```{r import data, include=FALSE}
+#Load Data
+df=read.csv("9sp_corr.csv") #time by months; excludes missing corals
+df %>% mutate_if(is.character, factor) 
+df$Species <- factor(df$Species, levels = c("MMEA", "DSTR", "DSTO", "DCLI", "MCAV", "SSID", "SINT", "PAST", "SBOU"))
+
+#Recode Factors
+df$Condition<-recode_factor(df$Condition, "Normal"="No Conditions")
+df$Condition<-recode_factor(df$Condition, "Buried"="Burial")
+df$Species<-recode_factor(df$Species, "DCLI"="PCLI")
+df$Species<-recode_factor(df$Species, "DSTR"="PSTR")
+
+df$Condition <- factor(df$Condition, levels = c("Mortality", "Burial", "Bleaching", "Disease", "Partial Burial", "Partial Mortality", "No Conditions"))
+```
+
+Dot Plot
+```{r dot plot all conditions facet}
+df %>% filter(Condition %in% c("Bleaching","Disease","Burial", "Partial Burial","Partial Mortality","Mortality")) %>%
+  mutate(prop = Value/Total.Individuals*100) %>%
+  ggdotchart(x="Species", y = "prop",
+             color = "Condition",
+             rotate = TRUE,
+             add = "segments",
+             dot.size = 6,
+             label = "Value",
+             repel = FALSE,
+             xlab = "Top 9 Coral Species",
+             ylab = "Percentage of Corals with Condition",
+             font.label = list(color = "white", size = 9, vjust = 0.5),
+             facet.by = "Condition",
+             palette = get_palette("npg", 6)
+             )
+```
+
+Figure 7: Dot Plot
+```{r dot plot major conditions facet}
+Figure_7=df %>% filter(Condition %in% c("Bleaching","Disease","Burial","Mortality")) %>%
+  mutate(prop = Value/Total.Individuals*100) %>%
+  ggdotchart(x="Species", y = "prop",
+             color = "Condition",
+             rotate = TRUE,
+             add = "segments",
+             dot.size = 6,
+             label = "Value",
+             repel = FALSE,
+             xlab = "Top 9 Coral Species",
+             ylab = "% Corals with Condition (plus n corals in label)",
+             font.label = list(color = "white", size = 9, vjust = 0.5),
+             facet.by = "Condition",
+             palette = get_palette("npg", 4))
+Figure_7
+
+#Save as JPG
+ggsave("Figure_7.jpg", plot=Figure_7, width = 7, height = 5)
+```
+
+Cumulative Dot Plot by Species
+```{r dot plot major conditions BEST}
+sp_cond_dot <- df %>% filter(Condition %in% c("Bleaching","Disease","Buried","Mortality")) %>%
+  mutate(prop = Value/Total.Individuals*100) %>%
+  ggdotchart(x="Species", y = "prop",
+             color = "Condition",
+             rotate = TRUE,
+             add = "segments",
+             dot.size = 5,
+             label = "Value",
+             repel = FALSE,
+             xlab = "Coral Species",
+             sorting = c("none"),
+             ylab = "% Corals with Condition\n (plus # of corals with condition in circle) ",
+             font.label = list(color = "white", size = 9, vjust = 0.5),
+             palette = get_palette("npg", 4),
+             order = c("MMEA", "PSTR", "DSTO", "PCLI", "MCAV", "SSID", "SINT", "PAST", "SBOU")
+             ) + theme_bw()
+sp_cond_dot
+ggsave("species_condition_dotchart.jpeg")
+```
+
+Set up for Correlation Plot
+```{r}
+library(reshape2)
+df_w <- dcast(df, Species ~ Condition, value.var="Percentage")
+df_w
+```
+Set up for Figure 8: Correlation Plot
+```{r Corellation Matrix}
+#Select 
+df_corr <- df_w %>% dplyr::select(Mortality, Burial, Disease, Bleaching, "No Conditions", "Partial Mortality")
+res <- cor(df_corr)
+round(res,2)
+```
+Figure 8: Correlation Plot
+```{r}
+library(Hmisc)
+cor.mat <- rcorr(as.matrix(df_corr))
+cor.mat
+cor3<- cor_plot(cor.mat,
+  method = "number",
+  type = "lower",
+  significant.level = 0.05,
+  insignificant = "cross"
+)
+
+cor3
+ggsave("Figure_8.jpg", plot=cor3, width = 7, height = 5)
+```
+
+```{r}
+#Select 
+df_corr2 <- df_w %>% dplyr::select(Mortality, Burial, Disease, Bleaching)
+res <- cor(df_corr2)
+round(res,2)
+```
+Correlation Plot with only 4 conditions
+```{r}
+library(Hmisc)
+cor.mat2 <- rcorr(as.matrix(df_corr2))
+cor.mat2
+cor2 <- cor_plot(cor.mat2,
+  method = "number",
+  type = "lower",
+  significant.level = 0.05,
+  insignificant = "cross"
+)
+
+cor2
+
+ggsave("Corr_Plot.jpg", plot=cor2, width = 7, height = 5)
+```
+
+
+```{r}
+
+```
+
+
+```{r relationship between disease and mortality}
+mxd_scatter <- ggscatter(df_w, y = "Mortality", x = "Disease", color = "Mortality",
+       add = "reg.line",
+       conf.int = TRUE,
+       label = "Species",
+       repel = TRUE,
+       add.params = list(color = "grey",
+                         fill = "lightgray")
+       ) + stat_cor() + theme_bw() + gradient_color(c("blue", "red"))
+mxd_scatter
+ggsave("mortality_disease_scatter.jpg")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
