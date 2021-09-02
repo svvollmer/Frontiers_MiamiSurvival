@@ -1,0 +1,3 @@
+﻿Direction,Probability,SE,df,Lower CI,Upper CI
+North,0.657,0.0761,Inf,0.497,0.787
+South,0.541,0.0736,Inf,0.397,0.678
