@@ -1,0 +1,621 @@
+---
+title: "GLM_Analyses"
+author: "Rachele Spadafore"
+date: "5/15/2021"
+output: html_document
+---
+
+Notes: Markdown code for the Generalized Linear Mixed Effect Models (GLMs) of the Port of Miami data examining the fixed affects of channel (i.e. dredging impact), reef habitat and direction on the 6 coral conditions (Mortality, Partial Mortaility, Burial, Partial Burial, Bleaching and Disease) we examined. Each of these conditions is coded in the data set (first.data.bi.csv) as 0 (absence) or 1 (presence). Note, in the data sets the species Psudeodiploria clivosa has the species code of DCLI instead of the updated name of PCLI becasue at the time of the data collected DCLI was considered the correct abbreviation. This is also true of the species Psudeodiploria strigosa where in the data set the old abbreviation DSTR was used but in the manuscript we use the updated abbreviation of PSTR.
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load Packages
+```{r}
+#Load Packages
+library(car)
+library(tidyverse)
+library(dplyr)
+library(lme4)
+library(emmeans)
+library(stringr)    
+library(latex2exp)  
+library(lmerTest)
+library(glmmTMB)
+library(blme)
+library(bbmle)
+library(ggplot2)
+library(ggpubr)
+library(ggeffects)
+```
+
+Load and organize data
+```{r}
+#Load Data
+first.data.bi=read.csv("first.data.bi.csv")
+
+#Bottom row of data set showing up empty, remove it
+first.data.bi <- first.data.bi[-c(644),] 
+
+#Filter out missing corals
+#32 corals during this study went missing, removing them from the data set since we cannot determine or predict what their conditions would have been.
+first.data.bi=subset(first.data.bi, Comments!="MIS")
+
+#Change Transect, Site and Habitat to Factors
+first.data.bi$Transect=as.factor(first.data.bi$Transect)
+first.data.bi$Site=as.factor(first.data.bi$Site)
+first.data.bi$Habitat=as.factor(first.data.bi$Habitat)
+
+#Rename Direction and Dredge factors so they look better on plots
+first.data.bi$Direction<-recode_factor(first.data.bi$Direction, "N"="North", "S"="South")
+first.data.bi$Dredge<-recode_factor(first.data.bi$Dredge, "channel"="Channel", "control"="Control")
+
+```
+
+Table 1: Mortality GLM
+```{r}
+#GLMER
+dead.mod.c = glmer(cbind(Mortality, Mortality.norm) ~Dredge* Habitat*Direction +(1|Transect)+(1|Species) , data= first.data.bi, family = "binomial",glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
+
+#Summary
+summary(dead.mod.c)
+
+#Anova
+Anova(dead.mod.c)
+
+#Post Hoc for Dredge, Figure 3
+#Post Hoc Emmeans
+dead.emm.3 <- emmeans(dead.mod.c, "Dredge", type="response")
+dead.emm.3
+
+#Post Hoc for Direction, Supplemental Figure 6
+dead.emm.6 <- emmeans(dead.mod.c, "Direction", type="response")
+dead.emm.6
+
+
+
+```
+
+Table 1: Partial Mortality GLM
+```{r}
+#GLMER
+pm.mod.c = glmer(cbind(PM, PM.norm) ~Dredge* Habitat*Direction +(1|Site/Transect)+(1|Species) , data= first.data.bi, family = "binomial", glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
+
+#Summary
+summary(pm.mod.c)
+
+#Anova
+Anova(pm.mod.c)
+
+#Post Hoc Emmeans For Dredge, Figure 3
+pm.emm.3 <- emmeans(pm.mod.c, "Dredge", type="response")
+pm.emm.3
+
+pm.emm.p= emmeans(pm.mod.c, specs = "Dredge" )
+pm.emm.p
+
+#Tukey contrast
+tukey.pm.emm.c=contrast(pm.emm.c,method = "pairwise")
+summary(tukey.pm.emm.c)
+
+#Post Hoc for Direction, Supplemental Figure 6
+pm.emm.6 <- emmeans(pm.mod.c, "Direction", type="response")
+pm.emm.6
+```
+
+Table 1: Burial GLM
+```{r}
+#GLMER
+
+#Notes:
+#Model did not converge with (1|Site/Transect) so adjusted to (1|Site)
+#Model did not converge when fixed effects were interactive so they were made additive 
+bur.mod.c = glmer(cbind(Buried, Buried.norm) ~Dredge+ Habitat+Direction + (1|Species)+ (1|Site) , data= first.data.bi, family = "binomial",glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
+
+#Summary
+summary(bur.mod.c)
+
+#Anova
+Anova(bur.mod.c)
+
+#Post Hoc Emmeans for Dredge, Figure 3
+bur.emm.3=emmeans(bur.mod.c, "Dredge", type="response")
+bur.emm.3
+
+#Post Hoc Emmeans For Direction, Figure 6
+bur.emm.6 <- emmeans(bur.mod.c, "Direction", type="response")
+bur.emm.6
+
+#Trying a different post-hoc emmeans
+bur.emm.p= emmeans(bur.mod.c, specs = "Direction" )
+bur.emm.p
+
+#Tukey Contrast
+tukey.bur.emm.c=contrast(bur.emm.c,method = "pairwise")
+summary(tukey.bur.emm.c)
+```
+
+Table 1: Partial Burial GLM
+```{r}
+#GLMER
+#Notes:
+#Model did not converge with (1|Site/Transect) so adjusted to (1|Transect)
+#model did not converge when interactive fixed effects were used so swicthed to addtive effects
+pb.mod.c = glmer(cbind(PB, PB.norm) ~Dredge+ Habitat+Direction +(1|Transect)+(1|Species) , data= first.data.bi, family = "binomial")
+
+#doesnt need optimizer
+#glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
+
+#Summary
+summary(pb.mod.c)
+
+#Anova
+Anova(pb.mod.c)
+
+#Post Hoc Emmeans For Dredge, Figure 3
+pb.emm.3 <- emmeans(pb.mod.c, "Dredge", type="response")
+pb.emm.3
+
+#Tukey contrast
+tukey.pb.emm.c=contrast(pb.emm.c,method = "pairwise")
+summary(tukey.pb.emm.c)
+
+#Post Hoc for Direction, Supplemental Figure 6
+pb.emm.6 <- emmeans(pb.mod.c, "Direction", type="response")
+pb.emm.6
+```
+
+Table 1: Bleaching GLM
+```{r}
+#GLMER
+#Notes:
+#Model did not converge with (1|Site/Transect) so adjusted to (1|Transect)
+bleach.mod.c = glmer(cbind(Bleaching, Bleaching.norm) ~Dredge+ Habitat+Direction +(1|Site/Transect)+(1|Species) , data= first.data.bi, family = "binomial")
+                     
+#glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
+#doesnt need optimizer
+
+#Summary
+summary(bleach.mod.c)
+
+#Anova
+Anova(bleach.mod.c)
+
+#Dredge Emmean for Figure 3
+bl.emm.3 <- emmeans(bleach.mod.c, "Dredge", type="response")
+bl.emm.3
+
+
+#Post Hoc for Direction, Supplemental Figure 6
+bl.emm.6 <- emmeans(bleach.mod.c, "Direction", type="response")
+bl.emm.6
+```
+
+
+Table 1: Disease GLM
+```{r}
+#GLMER
+#Notes:
+#Model did not converge with (1|Site/Transect) so adjusted to (1|Transect)
+#model would not run with Habitat as a fixed effect, from otehr models we did not expect it to have significance so it was removed in order for the model to no have a singularity error
+dis.mod.c = glmer(cbind(Disease, Disease.norm) ~Dredge*Direction +(1|Transect)+(1|Species) , data= first.data.bi, family = "binomial")
+
+#,glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=20000)))
+#Doesnt need the optimizer
+
+#Summary
+summary(dis.mod.c)
+
+#Anova
+Anova(dis.mod.c)
+
+#Post Hoc Emmeans for Figure 3 (Dredge)
+dis.emm.3 <- emmeans(dis.mod.c, "Dredge", type="response")
+dis.emm.3
+
+#Post Hoc Emmeans
+dis.emm.c <- emmeans(dis.mod.c, "Direction", type="response")
+dis.emm.c
+
+#Tukey Contrast
+tukey.dis.emm.c=contrast(dis.emm.c,method = "pairwise")
+summary(tukey.dis.emm.c)
+
+#Post Hoc for Direction, Supplemental Figure 6
+dis.emm.6 <- emmeans(dis.mod.c, "Direction", type="response")
+dis.emm.6
+```
+
+Figure 3: Load Emmean Data to Produce Manual Dredge Emmean Plots 
+```{r}
+#Mortality
+dead.emmeans=read.csv("dead.emmean.dre.plot.csv")
+#Partial Mortality
+pm.emmeans=read.csv("pm.emmean.dre.plot.csv")
+#Burial
+b.emmeans=read.csv("b.emmean.dre.plot.csv")
+#Partial Burial
+pb.emmeans=read.csv("pb.emmean.dre.plot.csv")
+#Bleaching
+bl.emmeans=read.csv("bl.emmean.dre.plot.csv")
+#Disease
+d.emmeans=read.csv("d.emmean.dre.plot.csv")
+
+```
+
+Figure 3: Manual Emmean Plot Mortality Dredge
+```{r}
+#Mortality 
+dead.plot3=ggerrorplot(dead.emmeans,
+                    y="Probability",
+                    x= "Dredge",
+                    ylab = "Probability",
+                    desc_stat = "mean",
+                    orientation="horizontal")+
+    geom_errorbar(aes(y = Probability,
+                    ymin = Lower.CI,
+                    ymax = Upper.CI),
+                width = 0.02)+
+  ylim(0,1)+
+  ggtitle("A. Mortality")+
+  annotate("text", x=0.7, y=0.9, size=3, label="p=0.332")+
+  theme_bw()+
+  theme(#axis.title.y =element_blank(),
+       # axis.text.y=element_blank(),
+       # axis.ticks.y=element_blank(),
+        #axis.title.x =element_blank(),
+       # axis.text.x=element_blank(),
+       # axis.ticks.x=element_blank(),
+        legend.position = "none",
+        plot.title = element_text(face="bold"))
+dead.plot3
+```
+
+Figure 3: Manual Emmean Plot Partial Mortality Dredge
+```{r}
+#Partial Mortality
+pm.plot3=ggerrorplot(pm.emmeans,
+                    y="Probability",
+                    x= "Dredge",
+                    ylab = "Probability",
+                    desc_stat = "mean",
+                    orientation="horizontal")+
+    geom_errorbar(aes(y = Probability,
+                    ymin = Lower.CI,
+                    ymax = Upper.CI),
+                width = 0.02)+
+  ylim(0,1)+
+  ggtitle("B. Partial Mortality")+
+  theme_bw()+
+  annotate("text", x=0.7, y=0.9,size=3, label = "p<0.001")+
+   theme(axis.title.y =element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        #axis.title.x =element_blank(),
+       # axis.text.x=element_blank(),
+       # axis.ticks.x=element_blank(),
+        legend.position = "none",
+       plot.title = element_text(face="bold"))
+        
+pm.plot3
+```
+
+
+Figure 3: Manual Emmean Plot Burial Dredge
+```{r}
+#Burial
+b.plot3=ggerrorplot(b.emmeans,
+                    y="Probability",
+                    x= "Dredge",
+                    ylab = "Probability",
+                    desc_stat = "mean",
+                    orientation="horizontal")+
+    geom_errorbar(aes(y = Probability,
+                    ymin = Lower.CI,
+                    ymax = Upper.CI),
+                width = 0.02)+
+  ylim(0,1)+
+  ggtitle("C. Burial")+
+  annotate("text", x=0.7, y=0.9,size=3, label = "p=0.884")+
+  theme_bw()+
+  theme(axis.title.y =element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        #axis.title.x =element_blank(),
+       # axis.text.x=element_blank(),
+       # axis.ticks.x=element_blank(),
+        legend.position = "none",
+       plot.title = element_text(face="bold"))
+b.plot3
+```
+
+Figure 3: Manual Emmean Plot Partial Burial Dredge
+```{r}
+#Partial Burial
+pb.plot3=ggerrorplot(pb.emmeans,
+                    y="Probability",
+                    x= "Dredge",
+                    ylab = "Probability",
+                    desc_stat = "mean",
+                    orientation="horizontal")+
+    geom_errorbar(aes(y = Probability,
+                    ymin = Lower.CI,
+                    ymax = Upper.CI),
+                width = 0.02)+
+  ylim(0,1)+
+  ggtitle("D. Partial Burial")+
+  annotate("text", x=0.7, y=0.9, size= 3, label = "p<0.001")+
+  theme_bw()+
+    theme(#axis.title.y =element_blank(),
+       #axis.text.y=element_blank(),
+       # axis.ticks.y=element_blank(),
+       #axis.title.x =element_blank(),
+        #axis.text.x=element_blank(),
+        #axis.ticks.x=element_blank(),
+        legend.position = "none",
+        plot.title = element_text(face="bold"))
+
+pb.plot3
+```
+
+Figure 3: Manual Emmean Plot Bleaching Dredge
+```{r}
+#Bleaching
+bl.plot3=ggerrorplot(bl.emmeans,
+                    y="Probability",
+                    x= "Dredge",
+                    ylab = "Probability",
+                    desc_stat = "mean",
+                    orientation="horizontal")+
+    geom_errorbar(aes(y = Probability,
+                    ymin = Lower.CI,
+                    ymax = Upper.CI),
+                width = 0.02)+
+  ylim(0,1)+
+  ggtitle("E. Bleaching")+
+  theme_bw()+
+  annotate("text", x=0.7, y=0.9, size=3,label = "p=0.982")+
+ theme(axis.title.y =element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+       #axis.title.x =element_blank(),
+       # axis.text.x=element_blank(),
+       # axis.ticks.x=element_blank(),
+       plot.title = element_text(face="bold"),
+        legend.position = "none")
+bl.plot3
+```
+
+Figure 3: Manual Emmean Plot Diseased Dredge
+```{r}
+#Disease
+d.plot3=ggerrorplot(d.emmeans,
+                    y="Probability",
+                    x= "Dredge",
+                    ylab = "Probability",
+                    desc_stat = "mean",
+                    orientation="horizontal")+
+    geom_errorbar(aes(y = Probability,
+                    ymin = Lower.CI,
+                    ymax = Upper.CI),
+                width = 0.02)+
+  ylim(0,1)+
+  ggtitle("F. Disease")+
+  theme_bw()+
+  annotate("text", x=0.7, y=0.9, size=3, label = "p=0.481")+
+ theme(axis.title.y =element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+       #axis.title.x =element_blank(),
+       # axis.ticks.x=element_blank(),
+        legend.position = "none",
+       plot.title = element_text(face="bold"))
+d.plot3
+```
+
+Figure 3: Arrange plots together
+```{r}
+#Arrange plots
+emmean.plot3=ggarrange(dead.plot3, pm.plot3, b.plot3, pb.plot3, bl.plot3,d.plot3,widths = c(1.3,1,1,1.3,1,1))
+
+#Display Plot
+emmean.plot3
+```
+
+Figure 3: Save as Jpg
+```{r}
+ggsave(filename="Figure_3.jpg", plot=emmean.plot3, device="jpg", width = 7, height = 5)
+```
+
+
+Figure S8: Load Emmean Data to Produce Manual Dredge Emmean Plots 
+```{r}
+dead.emmeans8=read.csv("dead.emmean.dir.plot.csv")
+pm.emmeans8=read.csv("pm.emmean.dir.plot.csv")
+b.emmeans8=read.csv("b.emmean.dir.plot.csv")
+pb.emmeans8=read.csv("pb.emmean.dir.plot.csv")
+bl.emmeans8=read.csv("bl.emmean.dir.plot.csv")
+d.emmeans8=read.csv("d.emmean.dir.plot.csv")
+```
+
+Figure S6: Manual Emmean Plot Mortality Direction
+```{r}
+dead.plot8=ggerrorplot(dead.emmeans8,
+                    y="Probability",
+                    x= "Direction",
+                    ylab = "Probability",
+                    desc_stat = "mean",
+                    orientation="horizontal")+
+    geom_errorbar(aes(y = Probability,
+                    ymin = Lower.CI,
+                    ymax = Upper.CI),
+                width = 0.02)+
+  ylim(0,1)+
+  ggtitle("A. Mortality")+
+  annotate("text", x=0.7, y=0.9, size=3, label="p=0.149")+
+  theme_bw()+
+  theme(#axis.title.y =element_blank(),
+       # axis.text.y=element_blank(),
+       # axis.ticks.y=element_blank(),
+        #axis.title.x =element_blank(),
+       # axis.text.x=element_blank(),
+       # axis.ticks.x=element_blank(),
+        legend.position = "none",
+        plot.title = element_text(face="bold"))
+dead.plot8
+```
+
+Figure S8: Manual Emmean Plot Partial Mortality Direction
+```{r}
+pm.plot8=ggerrorplot(pm.emmeans8,
+                    y="Probability",
+                    x= "Direction",
+                    ylab = "Probability",
+                    desc_stat = "mean",
+                    orientation="horizontal")+
+    geom_errorbar(aes(y = Probability,
+                    ymin = Lower.CI,
+                    ymax = Upper.CI),
+                width = 0.02)+
+  ylim(0,1)+
+  ggtitle("B. Partial Mortality")+
+  theme_bw()+
+  annotate("text", x=0.7, y=0.9,size=3, label = "p=0.541")+
+   theme(axis.title.y =element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        #axis.title.x =element_blank(),
+       # axis.text.x=element_blank(),
+       # axis.ticks.x=element_blank(),
+        legend.position = "none",
+       plot.title = element_text(face="bold"))
+        
+pm.plot8
+```
+
+Figure S8: Manual Emmean Plot Burial Direction
+```{r}
+b.plot8=ggerrorplot(b.emmeans8,
+                    y="Probability",
+                    x= "Direction",
+                    ylab = "Probability",
+                    desc_stat = "mean",
+                    orientation="horizontal")+
+    geom_errorbar(aes(y = Probability,
+                    ymin = Lower.CI,
+                    ymax = Upper.CI),
+                width = 0.02)+
+  ylim(0,1)+
+  ggtitle("C. Burial")+
+  annotate("text", x=0.7, y=0.9,size=3, label = "p<0.005")+
+  theme_bw()+
+  theme(axis.title.y =element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        #axis.title.x =element_blank(),
+       # axis.text.x=element_blank(),
+       # axis.ticks.x=element_blank(),
+        legend.position = "none",
+       plot.title = element_text(face="bold"))
+b.plot8
+```
+Figure S8: Manual Emmean Plot Partial Burial Direction
+```{r}
+pb.plot8=ggerrorplot(pb.emmeans8,
+                    y="Probability",
+                    x= "Direction",
+                    ylab = "Probability",
+                    desc_stat = "mean",
+                    orientation="horizontal")+
+    geom_errorbar(aes(y = Probability,
+                    ymin = Lower.CI,
+                    ymax = Upper.CI),
+                width = 0.02)+
+  ylim(0,1)+
+  ggtitle("D. Partial Burial")+
+  annotate("text", x=0.7, y=0.9, size= 3, label = "p=0.128")+
+  theme_bw()+
+    theme(#axis.title.y =element_blank(),
+       #axis.text.y=element_blank(),
+       # axis.ticks.y=element_blank(),
+       #axis.title.x =element_blank(),
+        #axis.text.x=element_blank(),
+        #axis.ticks.x=element_blank(),
+        legend.position = "none",
+        plot.title = element_text(face="bold"))
+
+pb.plot8
+```
+Figure S8: Manual Emmean Plot Bleaching Direction
+```{r}
+bl.plot8=ggerrorplot(bl.emmeans8,
+                    y="Probability",
+                    x= "Direction",
+                    ylab = "Probability",
+                    desc_stat = "mean",
+                    orientation="horizontal")+
+    geom_errorbar(aes(y = Probability,
+                    ymin = Lower.CI,
+                    ymax = Upper.CI),
+                width = 0.02)+
+  ylim(0,1)+
+  ggtitle("E. Bleaching")+
+  theme_bw()+
+  annotate("text", x=0.7, y=0.9, size=3,label = "p=0.854")+
+ theme(axis.title.y =element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+       #axis.title.x =element_blank(),
+       # axis.text.x=element_blank(),
+       # axis.ticks.x=element_blank(),
+       plot.title = element_text(face="bold"),
+        legend.position = "none")
+bl.plot8
+```
+Figure S8: Manual Emmean Plot Diseased Direction
+```{r}
+d.plot8=ggerrorplot(d.emmeans8,
+                    y="Probability",
+                    x= "Direction",
+                    ylab = "Probability",
+                    desc_stat = "mean",
+                    orientation="horizontal")+
+    geom_errorbar(aes(y = Probability,
+                    ymin = Lower.CI,
+                    ymax = Upper.CI),
+                width = 0.02)+
+  ylim(0,1)+
+  ggtitle("F. Disease")+
+  theme_bw()+
+  annotate("text", x=0.7, y=0.9, size=3, label = "p<0.01")+
+ theme(axis.title.y =element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+       #axis.title.x =element_blank(),
+       # axis.ticks.x=element_blank(),
+        legend.position = "none",
+       plot.title = element_text(face="bold"))
+d.plot8
+```
+
+
+Figure S8: Arrange into one plot
+```{r}
+#Arrange
+emmean.plot8=ggarrange(dead.plot8, pm.plot8, b.plot8, pb.plot8, bl.plot8,d.plot8,widths = c(1.3,1,1,1.3,1,1))
+
+#Display
+emmean.plot8
+
+#Save as JPG
+ggsave(filename="Figure_S8.jpg", plot=emmean.plot8, device="jpg", width = 7, height = 5)
+```
+
+
+
+
+
+
+
