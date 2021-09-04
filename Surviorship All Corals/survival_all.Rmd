@@ -1,0 +1,136 @@
+---
+title: "Survival Analyses"
+output: html_document
+always_allow_html: true
+---
+
+Survival analyses of the Port of Miami data examining the main effects of channel (i.e. dredging impact), reef habitat, and direction for the full dataset followed by survival analyses of the top nine species dataset which includes species as a factor. 
+
+Survival analyses used to tease apart species specific differences as well as the impact of state (or condition) specifically whether the corals were observed to be buried, bleached or diseased. Each variable is coded as 0 (absence) or 1 (presence) as well as in combination in the states column.
+
+```{r setup}
+rm(list = ls())
+knitr::opts_chunk$set(echo = TRUE, error = FALSE)
+```
+
+```{r libraries, include=FALSE}
+library(knitr)
+library(survival)
+library(coda)
+library(survminer)
+library(dplyr)
+library(ggplot2)
+library(car)
+library(tidyverse)
+library(kableExtra)
+library(ggpubr)
+```
+
+```{r import data}
+df_surv=read.csv("survival_bymonth.csv") #time by months; excludes missing corals
+df_status=read.csv("coded_condition_data.csv") #pulls in state data
+df <- merge(df_surv, df_status, by.x = "ID", by.y = "Coral") #merge dataframes
+#glimpse(df)
+```
+
+```{r mortality by state}
+#Condition codes [Disease = 1; Bleaching = 3; Buried = 5; then Additive combos]
+State_Mortality <- xtabs(~States+Mortality, data = df)
+write.csv(State_Mortality, "Conditions_by_Mortality.csv")
+```
+0 = no observed condition; 1 = diseased; 3 = bleaching; 5 = buried; and then additive combos to produce unique numbers. Code numbers into states for final table using "Conditions_by_Mortality.csv.
+
+```{r state by species}
+sp_state <- as_tibble(xtabs(~Species+States, data = df))
+kbl(sp_state) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+Table shows the conditions by species where disease is a focus of this analysis including species specific patterns of disease susceptibility to SCTLD in particular.
+
+```{r df long}
+#Makes data.frame into long format for survival analyses
+df_long <- gather(df,
+                   key = "months",
+                   value = "census",
+                   X0:X21)
+df1 <- df_long %>% 
+  mutate(months = as.numeric(gsub("X", "", months)))
+  
+```
+
+```{r}
+df1$Habitat <- as.character(df1$Habitat)
+#Change Dir codes
+df1$Dir <- recode_factor(df1$Direction, N = "North", S = "South")
+#Change Habitat codes
+df1$Habitat <- recode_factor(df1$Habitat, "1" = "HardBottom", "2" = "InnerReef", "3" = "OuterReef")
+
+df_all <- df1 %>% mutate_if(is.character, factor)
+```
+
+```{r Cox Main Effects}
+# Fit Cox Model
+df_all$Dredge <- relevel(df_all$Dredge, ref ="control")
+cox_fit_all<- coxph(Surv(months, census) ~ Dredge + Direction + Habitat, data=df_all)
+cox_fit_all
+```
+
+Double check, but exp(coef) is the relative hazards ratio and its se. Not sure what the HR is for habitat which should have 3 states?
+
+```{r}
+summary(cox_fit_all)
+```
+Figure 4a
+```{r}
+hr_plot_full <- ggforest(cox_fit_all, main = "Cox Proportional Hazard Model")
+hr_plot_full
+ggsave("hr_plot_full.jpeg")
+```
+
+
+```{r ANOVA Cox Main Effects}
+anova_cox_fit_all <- Anova(cox_fit_all)
+anova_cox_fit_all
+write.csv(anova_cox_fit_all, "anova_cox_fit_all.csv")
+```
+NS channel effect on mortality, but Habitat and Direction both significant.
+
+
+Figure 4b
+```{r Habitat_Dir_survplot}
+fit_hab_dir <- survfit(Surv(months, census) ~ Habitat + Dir, data=df_all)
+fit_hab_dir
+ggsurv_main <- ggsurvplot(fit_hab_dir,
+           conf.int = TRUE,
+           xlab = "Time in Months from Onset of SCTLD Outbreak",
+           palette = get_palette("npg", 6))
+ggsurv_main$plot + theme_bw() + facet_grid(Habitat ~ Dir) + theme(legend.position = "none")
+```
+
+Figure 4b, zoomed in to highlight period of greatest change
+```{r Habitat_Dir_survplot_onset}
+ggsurv_main_onset <- ggsurvplot(fit_hab_dir,
+           conf.int = TRUE,
+           xlab = "Time in Months from Onset of SCTLD Outbreak",
+           ylab= "Proportion of Surviving Corals",
+           palette = get_palette("npg", 6),
+           break.time.by = 3,
+           xlim = c(14, 21),
+           ylim = c(0.3, 1))
+
+surv_plot <- ggsurv_main_onset$plot + theme_bw() + facet_grid(Habitat ~ Dir) + theme(legend.position = "none")
+surv_plot
+ggsave("surv_plot.jpeg")
+```
+
+Combination of Figure 4a and 4b
+```{r}
+ggarrange(
+  hr_plot_full, surv_plot, labels = c("A", "B")
+)
+ggsave("Figure_4.jpeg", width= 12, height =10)
+```
+
+
+
+
